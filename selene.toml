@@ -1,0 +1,17 @@
+std = "roblox"
+exclude = ["src/StarterPlayer/StarterCharacterScripts/Animate/init.client.luau"]
+
+[rules]
+# Style
+multiple_statements = "warn"
+unnecessary_else = "warn"
+
+# Safety
+shadowing = "warn"
+unused_variable = "warn"
+global_usage = "deny"
+
+# Roblox Best Practices
+deprecated = "warn"
+parenting_in_new = "warn"
+inconsistent_instrumentation = "warn"
