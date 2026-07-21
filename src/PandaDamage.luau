@@ -67,37 +67,7 @@ local function applyLifesteal(attacker: Player, dealtDamage: number, lifestealPe
 	end
 end
 
-function PandaDamage.ApplyDamage(attacker: Player, target: Player, baseDamage: number, multipliers: DamageMultipliers)
-	if not attacker or not target or not baseDamage or not multipliers then
-		warn(`[PandaDamage] Invalid arguments: {attacker}, {target}, {baseDamage}, {multipliers}`)
-		return
-	end
-
-	local targetCharacter = target.Character
-	if not targetCharacter then
-		warn(`[PandaDamage] Target has no character: {target}`)
-		return
-	end
-
-	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
-	if not targetHumanoid then
-		warn(`[PandaDamage] Target has no humanoid: {target}`)
-		return
-	end
-	multipliers = multipliers or {}
-	local combo = multipliers.Combo or 1
-	combo = combo * PandaDamage.CONFIG.COMBO_FACTOR
-	local damageMultiplier = multipliers.DamageMultiplier or 1
-	local damageTakenMultiplier = multipliers.DamageTakenMultiplier or 1
-	local lifestealPercent = multipliers.LifestealPercent or 0
-	local thornsPercent = multipliers.ThornsPercent or 0
-
-	local dealtDamage = baseDamage * PandaDamage.CONFIG.OVERALL_DAMAGE_MULTIPLIER * combo * damageMultiplier -- Damage the attacker dealt
-	local damage = dealtDamage * damageTakenMultiplier -- The final damage, can be more or less, that the target takes
-
-	applyLifesteal(attacker, dealtDamage, lifestealPercent)
-
-	-- Thorns
+local function applyThorns(attacker: Player, dealtDamage: number, damage: number, thornsPercent: number)
 	if thornsPercent > 0 then
 		local thornsMode = PandaDamage.CONFIG.THORNS_MODE
 
@@ -124,7 +94,39 @@ function PandaDamage.ApplyDamage(attacker: Player, target: Player, baseDamage: n
 				attackerHumanoid:TakeDamage(math.min(thornsAmount, attackerHumanoid.Health))
 			end
 		end
+	end	
+end
+
+function PandaDamage.ApplyDamage(attacker: Player, target: Player, baseDamage: number, multipliers: DamageMultipliers)
+	if not attacker or not target or not baseDamage or not multipliers or baseDamage <= 0 then
+		warn(`[PandaDamage] Invalid arguments: {attacker}, {target}, {baseDamage}, {multipliers}`)
+		return
 	end
+
+	local targetCharacter = target.Character
+	if not targetCharacter then
+		warn(`[PandaDamage] Target has no character: {target}`)
+		return
+	end
+
+	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
+	if not targetHumanoid then
+		warn(`[PandaDamage] Target has no humanoid: {target}`)
+		return
+	end
+
+	local combo = multipliers.Combo or 1
+	combo = combo * PandaDamage.CONFIG.COMBO_FACTOR
+	local damageMultiplier = multipliers.DamageMultiplier or 1
+	local damageTakenMultiplier = multipliers.DamageTakenMultiplier or 1
+	local lifestealPercent = multipliers.LifestealPercent or 0
+	local thornsPercent = multipliers.ThornsPercent or 0
+
+	local dealtDamage = baseDamage * PandaDamage.CONFIG.OVERALL_DAMAGE_MULTIPLIER * combo * damageMultiplier -- Damage the attacker dealt
+	local damage = dealtDamage * damageTakenMultiplier -- The final damage, can be more or less, that the target takes
+
+	applyLifesteal(attacker, dealtDamage, lifestealPercent)
+	applyThorns(attacker, dealtDamage, damage, thornsPercent)
 
 	if targetHumanoid.Health > 0 then
 		targetHumanoid:TakeDamage(damage)
@@ -145,6 +147,9 @@ function PandaDamage.ApplyDamage(attacker: Player, target: Player, baseDamage: n
 			if not success then
 				warn(`[PandaDamage] Error in OnKill function: {err}`)
 			end
+
+			humanoidConnections[target]:Disconnect()
+			humanoidConnections[target] = nil -- This is necessary to avoid a Players.PlayerRemoving connection
 		end)
 
 		if resetThreads[target] then
@@ -153,6 +158,7 @@ function PandaDamage.ApplyDamage(attacker: Player, target: Player, baseDamage: n
 
 		resetThreads[target] = task.delay(PandaDamage.CONFIG.DEFAULT_TIMEOUT, function()
 			target:SetAttribute("LastAttacker", nil)
+			resetThreads[target] = nil
 		end)
 	end
 end
